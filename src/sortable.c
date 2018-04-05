@@ -113,7 +113,7 @@ void SortingVector_RdbSave(RedisModuleIO *rdb, RSSortingVector *v) {
     switch (val->t) {
       case RSValue_String:
         // save string - one extra byte for null terminator
-        RedisModule_SaveStringBuffer(rdb, val->strval.str, val->strval.len + 1);
+        RedisModule_SaveStringBuffer(rdb, RSVALUE_STRPTR(val), RSVALUE_STRLEN(val) + 1);
         break;
 
       case RSValue_Number:
@@ -271,8 +271,8 @@ void SortingVector_Serialize(const RSSortingVector *sv, Buffer *out) {
     switch (val->t) {
       case RSValue_String:
         Buffer_WriteU8(&bw, SV_SERIALIZED_STRING);
-        buf = val->strval.str;
-        slen = val->strval.len;
+        buf = RSVALUE_STRPTR(val);
+        slen = RSVALUE_STRLEN(val);
         break;
       case RSValue_RedisString:
         Buffer_WriteU8(&bw, SV_SERIALIZED_STRING);

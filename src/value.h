@@ -41,6 +41,13 @@ typedef enum {
 
 #define RSVALUE_STATIC ((RSValue){.allocated = 0})
 
+#define RSVALUE_STRPTR(rsv) (rsv)->_strval.str
+#define RSVALUE_STRLEN(rsv) (rsv)->_strval.len
+#define RSVALUE_STRTYPE(rsv) (rsv)->_strval.stype
+
+#define RSVALUE_ARRPTR(rsv) (rsv)->_arrval.vals
+#define RSVALUE_ARRLEN(rsv) (rsv)->_arrval.len
+
 // Variant value union
 typedef struct rsvalue {
   RSValueType t : 8;
@@ -56,13 +63,13 @@ typedef struct rsvalue {
       uint32_t len : 29;
       // sub type for string
       RSStringType stype : 3;
-    } strval;
+    } _strval;
 
     // array value
     struct {
       struct rsvalue **vals;
       uint32_t len;
-    } arrval;
+    } _arrval;
 
     // redis string value
     struct RedisModuleString *rstrval;
@@ -148,9 +155,9 @@ static inline int RSValue_IsNull(const RSValue *value) {
  * A volatile string usually comes from a block allocator and is not freed in RSVAlue_Free, so just
  * discarding the pointer here is "safe" */
 static inline RSValue *RSValue_MakePersistent(RSValue *v) {
-  if (v->t == RSValue_String && v->strval.stype == RSString_Volatile) {
-    v->strval.str = strndup(v->strval.str, v->strval.len);
-    v->strval.stype = RSString_Malloc;
+  if (v->t == RSValue_String && RSVALUE_STRTYPE(v) == RSString_Volatile) {
+    RSVALUE_STRPTR(v) = strndup(RSVALUE_STRPTR(v), RSVALUE_STRLEN(v));
+    RSVALUE_STRTYPE(v) = RSString_Malloc;
   }
   return v;
 }
@@ -175,7 +182,7 @@ static inline uint64_t RSValue_Hash(RSValue *v, uint64_t hval) {
       return RSValue_Hash(v->ref, hval);
     case RSValue_String:
 
-      return fnv_64a_buf(v->strval.str, v->strval.len, hval);
+      return fnv_64a_buf(RSVALUE_STRPTR(v), RSVALUE_STRLEN(v), hval);
     case RSValue_Number:
       return fnv_64a_buf(&v->numval, sizeof(double), hval);
 
@@ -188,8 +195,8 @@ static inline uint64_t RSValue_Hash(RSValue *v, uint64_t hval) {
       return 1337;  // TODO: fix...
 
     case RSValue_Array: {
-      for (uint32_t i = 0; i < v->arrval.len; i++) {
-        hval = RSValue_Hash(v->arrval.vals[i], hval);
+      for (uint32_t i = 0; i < RSVALUE_ARRLEN(v); i++) {
+        hval = RSValue_Hash(RSVALUE_ARRPTR(v)[i], hval);
       }
       return hval;
     }
@@ -223,7 +230,7 @@ RSValue *RS_NewValueFromCmdArg(CmdArg *arg);
 int RSValue_Cmp(RSValue *v1, RSValue *v2);
 
 static inline RSValue *RSValue_ArrayItem(RSValue *arr, uint32_t index) {
-  return arr->arrval.vals[index];
+  return RSVALUE_ARRPTR(arr)[index];
 }
 
 /* Based on the value type, serialize the value into redis client response */

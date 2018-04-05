@@ -44,9 +44,9 @@ char *unescpeStringDup(const char *s, size_t sz) {
 RSExpr *RS_NewStringLiteral(const char *str, size_t len) {
   RSExpr *e = newExpr(RSExpr_Literal);
   e->literal = RS_StaticValue(RSValue_String);
-  e->literal.strval.str = unescpeStringDup(str, len);
-  e->literal.strval.len = strlen(e->literal.strval.str);
-  e->literal.strval.stype = RSString_Malloc;
+  RSVALUE_STRPTR(&e->literal) = unescpeStringDup(str, len);
+  RSVALUE_STRLEN(&e->literal) = strlen(RSVALUE_STRPTR(&e->literal));
+  RSVALUE_STRTYPE(&e->literal) = RSString_Malloc;
   return e;
 }
 

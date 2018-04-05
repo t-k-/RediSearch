@@ -48,7 +48,7 @@ static size_t serializeResult(QueryPlan *qex, SearchResult *r, RSSearchFlags fla
           /* Serialize string - by prepending "$" to it */
 
           RedisModule_ReplyWithString(ctx,
-                                      RedisModule_CreateStringPrintf(ctx, "$%s", sortkey->strval));
+                                      RedisModule_CreateStringPrintf(ctx, "$%s", RSVALUE_STRPTR(sortkey)));
           break;
         case RSValue_RedisString:
           RedisModule_ReplyWithString(

@@ -12,8 +12,8 @@ int testValue() {
   const char *str = "hello world";
   v = RS_StringValC(strdup(str));
   ASSERT_EQUAL(RSValue_String, v->t);
-  ASSERT_EQUAL(strlen(str), v->strval.len);
-  ASSERT(!strcmp(str, v->strval.str));
+  ASSERT_EQUAL(strlen(str), RSVALUE_STRLEN(v));
+  ASSERT(!strcmp(str, RSVALUE_STRPTR(v)));
   RSValue_Free(v);
 
   // cannot use redis strings in tests...
@@ -35,29 +35,29 @@ int testField() {
 int testArray() {
 
   RSValue *arr = RS_VStringArray(3, strdup("foo"), strdup("bar"), strdup("baz"));
-  ASSERT_EQUAL(3, arr->arrval.len);
+  ASSERT_EQUAL(3, RSVALUE_ARRLEN(arr));
   ASSERT_EQUAL(RSValue_String, RSValue_ArrayItem(arr, 0)->t);
-  ASSERT_STRING_EQ("foo", RSValue_ArrayItem(arr, 0)->strval.str);
+  ASSERT_STRING_EQ("foo", RSVALUE_STRPTR(RSValue_ArrayItem(arr, 0)));
 
   ASSERT_EQUAL(RSValue_String, RSValue_ArrayItem(arr, 1)->t);
-  ASSERT_STRING_EQ("bar", RSValue_ArrayItem(arr, 1)->strval.str);
+  ASSERT_STRING_EQ("bar", RSVALUE_STRPTR(RSValue_ArrayItem(arr, 1)));
 
   ASSERT_EQUAL(RSValue_String, RSValue_ArrayItem(arr, 2)->t);
-  ASSERT_STRING_EQ("baz", RSValue_ArrayItem(arr, 2)->strval.str);
+  ASSERT_STRING_EQ("baz", RSVALUE_STRPTR(RSValue_ArrayItem(arr, 2)));
 
   RSValue_Free(arr);
 
   char *strs[] = {strdup("foo"), strdup("bar"), strdup("baz")};
   arr = RS_StringArray(strs, 3);
-  ASSERT_EQUAL(3, arr->arrval.len);
+  ASSERT_EQUAL(3, RSVALUE_ARRLEN(arr));
   ASSERT_EQUAL(RSValue_String, RSValue_ArrayItem(arr, 0)->t);
-  ASSERT_STRING_EQ("foo", RSValue_ArrayItem(arr, 0)->strval.str);
+  ASSERT_STRING_EQ("foo", RSVALUE_STRPTR(RSValue_ArrayItem(arr, 0)));
 
   ASSERT_EQUAL(RSValue_String, RSValue_ArrayItem(arr, 1)->t);
-  ASSERT_STRING_EQ("bar", RSValue_ArrayItem(arr, 1)->strval.str);
+  ASSERT_STRING_EQ("bar", RSVALUE_STRPTR(RSValue_ArrayItem(arr, 1)));
 
   ASSERT_EQUAL(RSValue_String, RSValue_ArrayItem(arr, 2)->t);
-  ASSERT_STRING_EQ("baz", RSValue_ArrayItem(arr, 2)->strval.str);
+  ASSERT_STRING_EQ("baz", RSVALUE_STRPTR(RSValue_ArrayItem(arr, 2)));
 
   RSValue_Free(arr);
 

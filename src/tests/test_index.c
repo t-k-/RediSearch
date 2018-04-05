@@ -1045,7 +1045,7 @@ int testSortable() {
   ASSERT(RSValue_IsNull(v->values[0]));
   RSSortingVector_Put(v, 0, str, RS_SORTABLE_STR);
   ASSERT_EQUAL(v->values[0]->t, RSValue_String);
-  ASSERT_EQUAL(v->values[0]->strval.stype, RSString_RMAlloc);
+  ASSERT_EQUAL(RSVALUE_STRTYPE(v->values[0]), RSString_RMAlloc);
 
   ASSERT(RSValue_IsNull(v->values[1]));
   ASSERT(RSValue_IsNull(v->values[2]));
@@ -1056,7 +1056,7 @@ int testSortable() {
   RSSortingVector_Put(v2, 0, masse, RS_SORTABLE_STR);
 
   /// test string unicode lowercase normalization
-  ASSERT_STRING_EQ("masse", v2->values[0]->strval.str);
+  ASSERT_STRING_EQ("masse", RSVALUE_STRPTR(v2->values[0]));
 
   double s2 = 4.444;
   RSSortingVector_Put(v2, 1, &s2, RS_SORTABLE_NUM);

@@ -72,15 +72,15 @@ inline void RSValue_Free(RSValue *v) {
     switch (v->t) {
       case RSValue_String:
         // free strings by allocation strategy
-        switch (v->strval.stype) {
+        switch (RSVALUE_STRTYPE(v)) {
           case RSString_Malloc:
-            free(v->strval.str);
+            free(RSVALUE_STRPTR(v));
             break;
           case RSString_RMAlloc:
-            RedisModule_Free(v->strval.str);
+            RedisModule_Free(RSVALUE_STRPTR(v));
             break;
           case RSString_SDS:
-            sdsfree(v->strval.str);
+            sdsfree(RSVALUE_STRPTR(v));
             break;
           case RSString_Const:
           case RSString_Volatile:
@@ -88,10 +88,10 @@ inline void RSValue_Free(RSValue *v) {
         }
         break;
       case RSValue_Array:
-        for (uint32_t i = 0; i < v->arrval.len; i++) {
-          RSValue_Free(v->arrval.vals[i]);
+        for (uint32_t i = 0; i < RSVALUE_ARRLEN(v); i++) {
+          RSValue_Free(RSVALUE_ARRPTR(v)[i]);
         }
-        if (v->allocated) free(v->arrval.vals);
+        if (v->allocated) free(RSVALUE_ARRPTR(v));
         break;
       case RSValue_Reference:
         RSValue_Free(v->ref);
@@ -122,22 +122,22 @@ inline void RSValue_SetNumber(RSValue *v, double n) {
 
 inline void RSValue_SetString(RSValue *v, char *str, size_t len) {
   v->t = RSValue_String;
-  v->strval.len = len;
-  v->strval.str = str;
-  v->strval.stype = RSString_Malloc;
+  RSVALUE_STRLEN(v) = len;
+  RSVALUE_STRPTR(v) = str;
+  RSVALUE_STRTYPE(v) = RSString_Malloc;
 }
 
 inline void RSValue_SetSDS(RSValue *v, sds s) {
   v->t = RSValue_String;
-  v->strval.len = sdslen(s);
-  v->strval.str = s;
-  v->strval.stype = RSString_SDS;
+  RSVALUE_STRLEN(v) = sdslen(s);
+  RSVALUE_STRPTR(v) = s;
+  RSVALUE_STRTYPE(v) = RSString_SDS;
 }
 inline void RSValue_SetConstString(RSValue *v, const char *str, size_t len) {
   v->t = RSValue_String;
-  v->strval.len = len;
-  v->strval.str = (char *)str;
-  v->strval.stype = RSString_Const;
+  RSVALUE_STRLEN(v) = len;
+  RSVALUE_STRPTR(v) = (char *)str;
+  RSVALUE_STRTYPE(v) = RSString_Const;
 }
 
 /* Wrap a string with length into a value object. Doesn't duplicate the string. Use strdup if
@@ -145,18 +145,18 @@ inline void RSValue_SetConstString(RSValue *v, const char *str, size_t len) {
 inline RSValue *RS_StringVal(char *str, uint32_t len) {
   assert(len <= (UINT32_MAX >> 4));
   RSValue *v = RS_NewValue(RSValue_String);
-  v->strval.str = str;
-  v->strval.len = len;
-  v->strval.stype = RSString_Malloc;
+  RSVALUE_STRPTR(v) = str;
+  RSVALUE_STRLEN(v) = len;
+  RSVALUE_STRTYPE(v) = RSString_Malloc;
   return v;
 }
 
 /* Same as RS_StringVal but with explicit string type */
 inline RSValue *RS_StringValT(char *str, uint32_t len, RSStringType t) {
   RSValue *v = RS_NewValue(RSValue_String);
-  v->strval.str = str;
-  v->strval.len = len;
-  v->strval.stype = t;
+  RSVALUE_STRPTR(v) = str;
+  RSVALUE_STRLEN(v) = len;
+  RSVALUE_STRTYPE(v) = t;
   return v;
 }
 inline RSValue *RS_ConstStringVal(char *str, uint32_t len) {
@@ -241,8 +241,8 @@ inline int RSValue_ToNumber(RSValue *v, double *d) {
 
     case RSValue_String:
       // C strings - take the ptr and len
-      p = v->strval.str;
-      l = v->strval.len;
+      p = RSVALUE_STRPTR(v);
+      l = RSVALUE_STRLEN(v);
       break;
     case RSValue_RedisString:
       // Redis strings - take the number and len
@@ -281,8 +281,8 @@ inline const void *RSValue_ToBuffer(RSValue *value, size_t *outlen) {
       *outlen = sizeof(value->numval);
       return &value->numval;
     case RSValue_String:
-      *outlen = value->strval.len;
-      return value->strval.str;
+      *outlen = RSVALUE_STRLEN(value);
+      return RSVALUE_STRPTR(value);
     case RSValue_RedisString:
       return RedisModule_StringPtrLen(value->rstrval, outlen);
     case RSValue_Array:
@@ -300,9 +300,9 @@ inline const char *RSValue_StringPtrLen(RSValue *value, size_t *lenp) {
   switch (value->t) {
     case RSValue_String:
       if (lenp) {
-        *lenp = value->strval.len;
+        *lenp = RSVALUE_STRLEN(value);
       }
-      return value->strval.str;
+      return RSVALUE_STRPTR(value);
     case RSValue_RedisString:
       return RedisModule_StringPtrLen(value->rstrval, lenp);
     default:
@@ -344,8 +344,8 @@ inline RSValue *RS_NumVal(double n) {
 inline RSValue *RS_ArrVal(RSValue **vals, uint32_t len) {
 
   RSValue *v = RS_NewValue(RSValue_Array);
-  v->arrval.vals = vals;
-  v->arrval.len = len;
+  RSVALUE_ARRPTR(v) = vals;
+  RSVALUE_ARRLEN(v) = len;
   return v;
 }
 
@@ -424,7 +424,7 @@ int RSValue_Cmp(RSValue *v1, RSValue *v2) {
 
         return v1->numval > v2->numval ? 1 : (v1->numval < v2->numval ? -1 : 0);
       case RSValue_String:
-        return cmp_strings(v1->strval.str, v2->strval.str, v1->strval.len, v2->strval.len);
+        return cmp_strings(RSVALUE_STRPTR(v1), RSVALUE_STRPTR(v2), RSVALUE_STRLEN(v1), RSVALUE_STRLEN(v2));
       case RSValue_RedisString: {
         size_t l1, l2;
         const char *s1 = RedisModule_StringPtrLen(v1->rstrval, &l1);
@@ -464,7 +464,7 @@ int RSValue_SendReply(RedisModuleCtx *ctx, RSValue *v) {
 
   switch (v->t) {
     case RSValue_String:
-      return RedisModule_ReplyWithStringBuffer(ctx, v->strval.str, v->strval.len);
+      return RedisModule_ReplyWithStringBuffer(ctx, RSVALUE_STRPTR(v), RSVALUE_STRLEN(v));
     case RSValue_RedisString:
       return RedisModule_ReplyWithString(ctx, v->rstrval);
     case RSValue_Number: {
@@ -475,9 +475,9 @@ int RSValue_SendReply(RedisModuleCtx *ctx, RSValue *v) {
     case RSValue_Null:
       return RedisModule_ReplyWithNull(ctx);
     case RSValue_Array:
-      RedisModule_ReplyWithArray(ctx, v->arrval.len);
-      for (uint32_t i = 0; i < v->arrval.len; i++) {
-        RSValue_SendReply(ctx, v->arrval.vals[i]);
+      RedisModule_ReplyWithArray(ctx, RSVALUE_ARRLEN(v));
+      for (uint32_t i = 0; i < RSVALUE_ARRLEN(v); i++) {
+        RSValue_SendReply(ctx, RSVALUE_ARRPTR(v)[i]);
       }
       return REDISMODULE_OK;
     default:
@@ -493,7 +493,7 @@ void RSValue_Print(RSValue *v) {
   printf("{%d}", v->t);
   switch (v->t) {
     case RSValue_String:
-      printf("%.*s", v->strval.len, v->strval.str);
+      printf("%.*s", RSVALUE_STRLEN(v), RSVALUE_STRPTR(v));
       break;
     case RSValue_RedisString:
       printf("%s", RedisModule_StringPtrLen(v->rstrval, NULL));
@@ -506,8 +506,8 @@ void RSValue_Print(RSValue *v) {
       break;
     case RSValue_Array:
       printf("[");
-      for (uint32_t i = 0; i < v->arrval.len; i++) {
-        RSValue_Print(v->arrval.vals[i]);
+      for (uint32_t i = 0; i < RSVALUE_ARRLEN(v); i++) {
+        RSValue_Print(RSVALUE_ARRPTR(v)[i]);
         printf(", ");
       }
       printf("]");
