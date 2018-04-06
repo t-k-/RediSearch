@@ -41,12 +41,12 @@ typedef enum {
 
 #define RSVALUE_STATIC ((RSValue){.allocated = 0})
 
-#define RSVALUE_STRPTR(rsv) (rsv)->_strval.str
-#define RSVALUE_STRLEN(rsv) (rsv)->_strval.len
-#define RSVALUE_STRTYPE(rsv) (rsv)->_strval.stype
+#define RSVALUE_STRPTR(rsv) (rsv)->strptr
+#define RSVALUE_STRLEN(rsv) (rsv)->misc32.strinfo.len
+#define RSVALUE_STRTYPE(rsv) (rsv)->misc32.strinfo.stype
 
-#define RSVALUE_ARRPTR(rsv) (rsv)->_arrval.vals
-#define RSVALUE_ARRLEN(rsv) (rsv)->_arrval.len
+#define RSVALUE_ARRPTR(rsv) (rsv)->arrvals
+#define RSVALUE_ARRLEN(rsv) (rsv)->misc32.arrlen
 
 // Variant value union
 typedef struct rsvalue {
@@ -54,22 +54,21 @@ typedef struct rsvalue {
   int refcount : 23;
   uint8_t allocated : 1;
   union {
+    struct {
+      uint32_t len : 29;
+      RSStringType stype : 3;
+    } strinfo;
+    uint32_t arrlen;
+  } misc32;
+  union {
     // numeric value
     double numval;
 
-    // string value
-    struct {
-      char *str;
-      uint32_t len : 29;
-      // sub type for string
-      RSStringType stype : 3;
-    } _strval;
+    // string value (see misc32::stype for type)
+    char *strptr;
 
-    // array value
-    struct {
-      struct rsvalue **vals;
-      uint32_t len;
-    } _arrval;
+    // array elements (see misc32::arrlen for length)
+    struct rsvalue **arrvals;
 
     // redis string value
     struct RedisModuleString *rstrval;
