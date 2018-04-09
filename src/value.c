@@ -6,26 +6,10 @@
 // Variant Values - will be used in documents as well
 ///////////////////////////////////////////////////////////////
 
-typedef struct {
-  mempool_t *values;
-  mempool_t *fieldmaps;
-} mempoolThreadPool;
-
-static void mempoolThreadPoolDtor(void *p) {
-  mempoolThreadPool *tp = p;
-  mempool_destroy(tp->values);
-  mempool_destroy(tp->fieldmaps);
-  free(tp);
-}
-
 pthread_key_t mempoolKey_g;
 
 static void *_valueAlloc() {
   return malloc(sizeof(RSValue));
-}
-
-static void _valueFree(void *p) {
-  free(p);
 }
 
 /* The byte size of the field map */
@@ -39,23 +23,11 @@ void *_fieldMapAlloc() {
   return ret;
 }
 
-static void __attribute__((constructor)) initKey() {
-  pthread_key_create(&mempoolKey_g, mempoolThreadPoolDtor);
-}
-
-static mempoolThreadPool *getPoolInfo() {
-  mempoolThreadPool *tp = pthread_getspecific(mempoolKey_g);
-  if (tp == NULL) {
-    tp = calloc(1, sizeof(*tp));
-    tp->values = mempool_new_limited(1000, 0, _valueAlloc, _valueFree);
-    tp->fieldmaps = mempool_new_limited(100, 1000, _fieldMapAlloc, free);
-    pthread_setspecific(mempoolKey_g, tp);
-  }
-  return tp;
-}
+MEMPOOL_DECLARE_THREADED(values, _valueAlloc, free, 1000, 0)
+MEMPOOL_DECLARE_THREADED(fieldmaps, _fieldMapAlloc, free, 100, 1000)
 
 RSValue *RS_NewValue(RSValueType t) {
-  RSValue *v = mempool_get(getPoolInfo()->values);
+  RSValue *v = mempool_get(MEMPOOL_GET_THREADED(values));
   v->t = t;
   v->refcount = 0;
   v->allocated = 1;
@@ -101,7 +73,7 @@ inline void RSValue_Free(RSValue *v) {
     }
 
     if (v->allocated) {
-      mempool_release(getPoolInfo()->values, v);
+      mempool_release(MEMPOOL_GET_THREADED(values), v);
     }
   }
 }
@@ -562,7 +534,7 @@ inline RSField RS_NewField(const char *k, RSValue *val) {
 /* Create a new field map with a given initial capacity */
 RSFieldMap *RS_NewFieldMap(uint16_t cap) {
   if (!cap) cap = 1;
-  RSFieldMap *m = mempool_get(getPoolInfo()->fieldmaps);
+  RSFieldMap *m = mempool_get(MEMPOOL_GET_THREADED(fieldmaps));
   m->len = 0;
   return m;
 }
@@ -651,7 +623,7 @@ void RSFieldMap_Free(RSFieldMap *m, int freeKeys) {
     if (freeKeys) free((void *)m->fields[i].key);
   }
   m->len = 0;
-  mempool_release(getPoolInfo()->fieldmaps, m);
+  mempool_release(MEMPOOL_GET_THREADED(fieldmaps), m);
   // free(m);
 }
 
