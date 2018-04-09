@@ -42,36 +42,50 @@ typedef enum {
 #define RSVALUE_STATIC ((RSValue){.allocated = 0})
 
 // Variant value union
-typedef struct rsvalue {
+// always ensure 8-byte alignment even if the individual components are "packed".
+// this ensures that access is always aligned to the nested members.
+struct __attribute__(( aligned(8) )) rsvalue {
   RSValueType t : 8;
   int refcount : 23;
   uint8_t allocated : 1;
+
+  /**
+   * Evil witchcraft to compact the structure without messing with the external
+   * API (too much). The structure need only be 16 bytes long.
+   */
   union {
-    // numeric value
-    double numval;
+    union __attribute__((packed)) {
+      // 12-byte values:
+      // string value
+      struct __attribute__((packed)) {
+        uint32_t len : 29;
+        // sub type for string
+        RSStringType stype : 3;
+        char *str;
+      } strval;
 
-    // string value
-    struct {
-      char *str;
-      uint32_t len : 29;
-      // sub type for string
-      RSStringType stype : 3;
-    } strval;
+      // array value
+      struct __attribute__((packed)) {
+        uint32_t len;
+        struct rsvalue **vals;
+      } arrval;
+    };
 
-    // array value
-    struct {
-      struct rsvalue **vals;
-      uint32_t len;
-    } arrval;
+    struct __attribute__((packed)) {
+      char pad[4];
+      union {
+        // numeric value
+        double numval;
+        // redis string value
+        struct RedisModuleString *rstrval;
 
-    // redis string value
-    struct RedisModuleString *rstrval;
-
-    // reference to another value
-    struct rsvalue *ref;
+        // reference to another value
+        struct rsvalue *ref;
+      };
+    };
   };
-
-} RSValue;
+} ;
+typedef struct rsvalue RSValue;
 
 /* Free a value's internal value. It only does anything in the case of a string, and doesn't free
  * the actual value object */
