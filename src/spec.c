@@ -519,7 +519,7 @@ IndexSpec *NewIndexSpec(const char *name, size_t numFields) {
   sp->numFields = 0;
   sp->flags = INDEX_DEFAULT_FLAGS;
   sp->name = rm_strdup(name);
-  sp->docs = NewDocTable(100);
+  sp->docs = NewDocTable(100, 1000000);
   sp->stopwords = DefaultStopWordList();
   sp->terms = NewTrie();
   sp->sortables = NULL;
@@ -651,7 +651,7 @@ void *IndexSpec_RdbLoad(RedisModuleIO *rdb, int encver) {
   RedisModuleCtx *ctx = RedisModule_GetContextFromIO(rdb);
   IndexSpec *sp = rm_malloc(sizeof(IndexSpec));
   sp->terms = NULL;
-  sp->docs = NewDocTable(1000);
+  sp->docs = NewDocTable(1000, 1000000);
   sp->sortables = NULL;
   sp->name = RedisModule_LoadStringBuffer(rdb, NULL);
   sp->gc = NULL;
