@@ -30,8 +30,7 @@ typedef enum fieldType { FIELD_FULLTEXT, FIELD_NUMERIC, FIELD_GEO, FIELD_TAG } F
 #define SPEC_SEPARATOR_STR "SEPARATOR"
 
 static const char *SpecTypeNames[] = {[FIELD_FULLTEXT] = SPEC_TEXT_STR,
-                                      [FIELD_NUMERIC] = NUMERIC_STR,
-                                      [FIELD_GEO] = GEO_STR,
+                                      [FIELD_NUMERIC] = NUMERIC_STR, [FIELD_GEO] = GEO_STR,
                                       [FIELD_TAG] = SPEC_TAG_STR};
 
 #define INDEX_SPEC_KEY_PREFIX "idx:"
@@ -140,7 +139,9 @@ typedef uint16_t FieldSpecDedupeArray[SPEC_MAX_FIELDS];
   (Index_StoreFreqs | Index_StoreFieldFlags | Index_StoreTermOffsets | Index_StoreNumeric | \
    Index_WideSchema)
 
-#define INDEX_CURRENT_VERSION 10
+#define INDEX_CURRENT_VERSION 11
+// Those versions contains doc table as array, we modified it array of arrays
+#define INDEX_MAX_VERSION_WITH_OLD_DOC_TABLE 10
 #define INDEX_MIN_COMPAT_VERSION 2
 // Versions below this always store the frequency
 #define INDEX_MIN_NOFREQ_VERSION 6
